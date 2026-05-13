@@ -1,0 +1,115 @@
+-- ─────────────────────────────────────────
+-- LOGIN SYSTEM
+-- ─────────────────────────────────────────
+
+-- Query      : SELECT * FROM users WHERE username = %s AND is_active = 1;
+-- Description: Fetch an active user by username to verify login credentials
+
+-- Query      : INSERT INTO audit_log (user_id, action, details) VALUES (%s, %s, %s);
+-- Description: Record every login attempt (success or failure) in the audit trail
+
+
+-- ─────────────────────────────────────────
+-- STUDENT CRUD
+-- ─────────────────────────────────────────
+
+-- Query      : INSERT INTO students (name, department, marks) VALUES (%s, %s, %s);
+-- Description: Insert a new student record (admin or faculty)
+
+-- Query      : INSERT INTO students (name, department, marks, user_id) VALUES (%s, %s, %s, %s);
+-- Description: Insert a new student and link to their user account (used during create_user)
+
+-- Query      : SELECT id, name, department, marks, enrolled_at FROM students ORDER BY id;
+-- Description: Retrieve all students sorted by ID
+
+-- Query      : SELECT id, name, department, marks FROM students WHERE LOWER(department) = LOWER(%s) ORDER BY marks DESC;
+-- Description: Search students by department (case-insensitive)
+
+-- Query      : UPDATE students SET name = %s, department = %s, marks = %s WHERE id = %s;
+-- Description: Update a student's name, department, and marks by ID
+
+-- Query      : DELETE FROM students WHERE id = %s;
+-- Description: Hard-delete a student by ID (admin only; confirmation required in Python)
+
+-- Query      : SELECT * FROM students WHERE user_id = %s;
+-- Description: Fetch the record belonging to the currently logged-in student
+
+
+-- ─────────────────────────────────────────
+-- ANALYTICS DASHBOARD
+-- ─────────────────────────────────────────
+
+-- Query      : SELECT COUNT(*) AS total, ROUND(AVG(marks), 2) AS average, MAX(marks) AS highest, MIN(marks) AS lowest FROM students;
+-- Description: Overall stats — count, average, highest, and lowest marks
+
+-- Query      : SELECT SUM(CASE WHEN marks >= 90 THEN 1 ELSE 0 END) AS grade_A, SUM(CASE WHEN marks >= 75 AND marks < 90 THEN 1 ELSE 0 END) AS grade_B, SUM(CASE WHEN marks >= 60 AND marks < 75 THEN 1 ELSE 0 END) AS grade_C, SUM(CASE WHEN marks >= 40 AND marks < 60 THEN 1 ELSE 0 END) AS grade_D, SUM(CASE WHEN marks < 40 THEN 1 ELSE 0 END) AS grade_F FROM students;
+-- Description: Count students per grade band
+
+-- Query      : SELECT department, COUNT(*) AS total_students, ROUND(AVG(marks), 2) AS avg_marks, MAX(marks) AS highest_marks, MIN(marks) AS lowest_marks FROM students GROUP BY department ORDER BY avg_marks DESC;
+-- Description: Per-department stats grouped and sorted by average marks
+
+
+-- ─────────────────────────────────────────
+-- TOP PERFORMERS & LEADERBOARD
+-- ─────────────────────────────────────────
+
+-- Query      : SELECT name, department, marks FROM students ORDER BY marks DESC LIMIT 3;
+-- Description: Top 3 students by marks
+
+-- Query      : SELECT department, ROUND(AVG(marks), 2) AS avg_marks, COUNT(*) AS students FROM students GROUP BY department ORDER BY avg_marks DESC;
+-- Description: Department leaderboard ranked by average marks
+
+
+-- ─────────────────────────────────────────
+-- BONUS MARKS
+-- ─────────────────────────────────────────
+
+-- Query      : UPDATE students SET marks = LEAST(marks + %s, 100) WHERE LOWER(department) = LOWER(%s);
+-- Description: Add bonus marks to all students in a department (capped at 100)
+
+
+-- ─────────────────────────────────────────
+-- EXPORT HIGH PERFORMERS
+-- ─────────────────────────────────────────
+
+-- Query      : SELECT name, department, marks FROM students WHERE marks > (SELECT AVG(marks) FROM students) ORDER BY marks DESC;
+-- Description: Students above the overall average (for CSV export)
+
+
+-- ─────────────────────────────────────────
+-- USER MANAGEMENT
+-- ─────────────────────────────────────────
+
+-- Query      : INSERT INTO users (username, password_hash, role) VALUES (%s, %s, %s);
+-- Description: Insert a new user with a hashed password and role
+
+-- Query      : SELECT id, username, role, is_active, created_at FROM users ORDER BY id;
+-- Description: List all users (password_hash excluded)
+
+-- Query      : UPDATE users SET is_active = NOT is_active WHERE id = %s;
+-- Description: Toggle a user's active status
+
+
+-- ─────────────────────────────────────────
+-- AUDIT LOG
+-- ─────────────────────────────────────────
+
+-- Query      : SELECT id, user_id, action, details, timestamp FROM audit_log ORDER BY timestamp DESC LIMIT 20;
+-- Description: Retrieve the 20 most recent audit entries
+
+
+-- ─────────────────────────────────────────
+-- MYSQL APPLICATION USER GRANTS
+-- ─────────────────────────────────────────
+
+-- Query      : CREATE USER IF NOT EXISTS 'spa_admin'@'localhost' IDENTIFIED BY 'admin_pass'; GRANT ALL PRIVILEGES ON spa_db.* TO 'spa_admin'@'localhost';
+-- Description: spa_admin — full database access
+
+-- Query      : CREATE USER IF NOT EXISTS 'spa_faculty'@'localhost' IDENTIFIED BY 'faculty_pass'; GRANT SELECT, INSERT, UPDATE ON spa_db.students TO 'spa_faculty'@'localhost'; GRANT SELECT ON spa_db.users TO 'spa_faculty'@'localhost'; GRANT INSERT ON spa_db.audit_log TO 'spa_faculty'@'localhost';
+-- Description: spa_faculty — read/write on students, read-only on users
+
+-- Query      : CREATE USER IF NOT EXISTS 'spa_student'@'localhost' IDENTIFIED BY 'student_pass'; GRANT SELECT ON spa_db.students TO 'spa_student'@'localhost'; GRANT SELECT ON spa_db.users TO 'spa_student'@'localhost';
+-- Description: spa_student — read-only access
+
+-- Query      : FLUSH PRIVILEGES;
+-- Description: Apply all grant changes immediately
